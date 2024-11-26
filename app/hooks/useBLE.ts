@@ -1,9 +1,7 @@
 /* eslint-disable no-bitwise */
 import { useState } from "react";
 import { PermissionsAndroid, Platform } from "react-native";
-
 import * as ExpoDevice from "expo-device";
-
 import { BleManager, Device } from "react-native-ble-plx";
 
 const DATA_SERVICE_UUID = "9eae1000-9d0d-48c5-aa55-33e27f9bc533";

@@ -6,9 +6,13 @@ import useBLE from './hooks/useBLE';
 import { Device } from 'react-native-ble-plx';
 import base64 from 'react-native-base64';
 import Material from "@expo/vector-icons/MaterialIcons";
+import { Image } from 'expo-image';
 
 const BULK_SERVICE_UUID = '9eae1000-9d0d-48c5-aa55-33e27f9bc533';
 const BULK_LIVE_DATA_CHAR_UUID = '9eae1001-9d0d-48c5-aa55-33e27f9bc533';
+
+const SETTINGS_SERVICE_UUID = 'f6d80000-5a10-4eba-aa55-33e27f9bc533';
+const SETTINGS_SETPOINT_CHAR_UUID = 'f6d70000-5a10-4eba-aa55-33e27f9bc533';
 
 export default function App() {
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -23,7 +27,7 @@ export default function App() {
     scanForPeripherals
   } = useBLE();
 
-  const beginPinecilDataPoll = useCallback(async (device: Device) => {
+  const openPinecilConnection = useCallback(async (device: Device) => {
     try {
       console.log('Starting data streaming for device:', device.id);
 
@@ -53,7 +57,17 @@ export default function App() {
             return;
           }
           const data = await targetChar.read();
-          poll(data.value || "");
+          if (!data.value) return;
+          const decodedBytes = base64.decode(data.value);
+          const dataView = new DataView(new TextEncoder().encode(decodedBytes).buffer);
+
+          setData({
+            temperature: dataView.getUint32(0 * 4, true),
+            setpoint: dataView.getUint32(1 * 4, true),
+            inputVoltage: dataView.getUint32(2 * 4, true) / 10,
+            handleTemperature: dataView.getUint32(3 * 4, true) / 10,
+            powerWatts: dataView.getUint32(4 * 4, true) / 10
+          });
         } catch (error) {
           console.error('Error reading data:', error);
         }
@@ -66,18 +80,36 @@ export default function App() {
     }
   }, []);
 
-  const poll = (data: string) => {
-    const decodedBytes = base64.decode(data);
-    const dataView = new DataView(new TextEncoder().encode(decodedBytes).buffer);
+  const handleSetpointChange = useCallback(async (setpoint: number) => {
+    try {
+      if (!connectedDevice) {
+        throw new Error('No device connected');
+      }
 
-    setData({
-      temperature: dataView.getUint32(0 * 4, true),
-      setpoint: dataView.getUint32(1 * 4, true),
-      inputVoltage: dataView.getUint32(2 * 4, true) / 10,
-      handleTemperature: dataView.getUint32(3 * 4, true) / 10,
-      powerWatts: dataView.getUint32(4 * 4, true) / 10
-    });
-  }
+      const services = await connectedDevice.services();
+      const targetService = services.find(service => service.uuid === SETTINGS_SERVICE_UUID);
+
+      if (!targetService) {
+        throw new Error(`Service ${SETTINGS_SERVICE_UUID} not found`);
+      }
+
+      const characteristics = await targetService.characteristics();
+      const targetChar = characteristics.find(
+        char => char.uuid === SETTINGS_SETPOINT_CHAR_UUID
+      );
+
+      if (!targetChar) {
+        throw new Error(`Characteristic ${SETTINGS_SETPOINT_CHAR_UUID} not found`);
+      }
+
+      const view = new DataView(new ArrayBuffer(2));
+      view.setUint16(0, setpoint, true);
+
+      await targetChar.writeWithResponse(base64.encode(new TextDecoder().decode(view.buffer)));
+    } catch (error) {
+      console.error('Error setting setpoint:', error);
+    }
+  }, [connectedDevice]);
 
   const handleConnect = useCallback(async (device: Device) => {
     try {
@@ -85,13 +117,15 @@ export default function App() {
       setIsModalVisible(false);
 
       await connectToDevice(device);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      await beginPinecilDataPoll(device);
+
+      // Wait for the device to connect before starting the data poll
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await openPinecilConnection(device);
     } catch (error) {
       console.error('Connection failed:', error);
-      Alert.alert('Connection Failed', 'Could not connect to the device');
     }
-  }, [connectToDevice, beginPinecilDataPoll]);
+  }, [connectToDevice, openPinecilConnection]);
 
   const handleDisconnect = async () => {
     if (!connectedDevice) return;
@@ -117,9 +151,10 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#181616" barStyle="light-content" />
-      
+
       {!connectedDevice ? (
         <View>
+          <Image source={require('../assets/images/kitty.png')} style={styles.kitty} />
           <Text style={styles.title}>blehh :3</Text>
           <TouchableOpacity style={styles.connectButton} onPress={handleScan}>
             <Material name="bluetooth-searching" size={24} color="#0d0c0c" />
@@ -128,9 +163,12 @@ export default function App() {
         </View>
       ) : (
         <View>
-          {data ? <DataDisplay onDisconnect={handleDisconnect} data={data} device={connectedDevice} /> : <View>
-            <Text style={styles.connectingText}>Connecting...</Text>
-            <ActivityIndicator size="large" color="#938AA9" />
+          {data ?
+            <DataDisplay data={data} device={connectedDevice} onDisconnect={handleDisconnect} onSetpointChange={handleSetpointChange} />
+            :
+            <View>
+              <Text style={styles.connectingText}>Connecting...</Text>
+              <ActivityIndicator size="large" color="#938AA9" />
             </View>}
         </View>
       )}
@@ -168,7 +206,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   connectButton: {
-    backgroundColor: '#87a987',
+    backgroundColor: '#938AA9',
     flexDirection: 'row',
     gap: 10,
     padding: 15,
@@ -184,5 +222,10 @@ const styles = StyleSheet.create({
     bottom: 20,
     fontSize: 16,
     color: '#938AA9',
+  },
+  kitty: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
   },
 });

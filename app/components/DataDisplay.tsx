@@ -6,6 +6,7 @@ import { Device } from 'react-native-ble-plx';
 interface DataDisplayProps {
   data: PinecilData;
   device: Device;
+  onSetpointChange: (setpoint: number) => void;
   onDisconnect: () => void;
 }
 
@@ -17,7 +18,7 @@ export type PinecilData = {
   powerWatts: number;
 }
 
-const DataDisplay: React.FC<DataDisplayProps> = ({ data, device, onDisconnect }) => {
+const DataDisplay: React.FC<DataDisplayProps> = ({ data, device, onSetpointChange, onDisconnect }) => {
   return (
     <View style={styles.container}>
       <View style={styles.topContainer}>
@@ -25,9 +26,23 @@ const DataDisplay: React.FC<DataDisplayProps> = ({ data, device, onDisconnect })
         <Text style={styles.title}>{device.name}</Text>
       </View>
       <View style={styles.dataContainer}>
+        <View style={styles.dataRow}>
+          <View style={styles.dataName}>
+            <MaterialIcons name="speed" size={32} color="#938AA9" />
+            <Text style={styles.dataLabel}>Setpoint</Text>
+          </View>
+          <View style={styles.buttons}>
+            <TouchableOpacity style={styles.setpointButton} onPress={() => onSetpointChange(data.setpoint + 10)}>
+              <MaterialIcons name="add" size={20} color="#0d0c0c" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.setpointButton} onPress={() => onSetpointChange(data.setpoint - 10)}>
+              <MaterialIcons name="remove" size={20} color="#0d0c0c" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.dataValue}>{data.setpoint}°C</Text>
+        </View>
         <DataItem icon="thermostat" label="Temperature" value={`${data.temperature}°C`} />
-        <DataItem icon="speed" label="Setpoint" value={`${data.setpoint}°C`} />
-        <DataItem icon="device-thermostat" label="Handle" value={`${data.handleTemperature}°C`} />
+        <DataItem icon="edit" label="Handle" value={`${data.handleTemperature}°C`} />
         <DataItem icon="battery-charging-full" label="Input Voltage" value={`${data.inputVoltage}V`} />
         <DataItem icon="power" label="Power" value={`${data.powerWatts}W`} />
       </View>
@@ -45,23 +60,18 @@ interface DataItemProps {
   value: string;
 }
 
-const DataItem: React.FC<DataItemProps> = ({ icon, label, value }) => {
-  return (
-    <View style={styles.dataRow}>
-      <View style={styles.dataName}>
-        <MaterialIcons name={icon as any} size={32} color="#938AA9" />
-        <Text style={styles.dataLabel}>{label}</Text>
-      </View>
-      <View>
-        <Text style={styles.dataValue}>{value}</Text>
-      </View>
+const DataItem: React.FC<DataItemProps> = ({ icon, label, value }) => (
+  <View style={styles.dataRow}>
+    <View style={styles.dataName}>
+      <MaterialIcons name={icon as any} size={32} color="#938AA9" />
+      <Text style={styles.dataLabel}>{label}</Text>
     </View>
-  );
-};
+    <Text style={styles.dataValue}>{value}</Text>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -119,6 +129,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 10,
+  },
+  setpointButton: {
+    backgroundColor: '#938AA9',
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 5,
+    marginHorizontal: 5,
+  },
+  buttons: {
+    flexDirection: 'row',
+    marginHorizontal: 10,
   },
 });
 

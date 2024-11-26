@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# let expo create it
+android/
+
 # Expo
 .expo/
 dist/

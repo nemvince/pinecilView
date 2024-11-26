@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "pinecilView",
+    "name": "Blehh",
     "slug": "pinecilView",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,10 +12,6 @@
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
       "permissions": [
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_ADMIN",
@@ -24,12 +20,7 @@
         "android.permission.BLUETOOTH_ADMIN",
         "android.permission.BLUETOOTH_CONNECT"
       ],
-      "package": "com.anonymous.pinecilView"
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "package": "lol.tvk.pinecilView"
     },
     "plugins": [
       "expo-router",
